@@ -10,22 +10,21 @@ jobs:
   android:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
-
     steps:
       - name: Checkout exact Eden RC1 commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: 8e373eb714aa01117ec885680477501cdb572112
           fetch-depth: 0
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install Android SDK requirements
         shell: bash
@@ -49,7 +48,6 @@ jobs:
           gradle = Path("src/android/app/build.gradle.kts")
 
           s = cpp.read_text()
-
           old = '''#include <memory>
           #include <mutex>'''
           new = '''#include <algorithm>
@@ -60,13 +58,9 @@ jobs:
           s = s.replace(old, new, 1)
 
           old = '''namespace Vulkan {
-
-
           void Scheduler::CommandChunk::ExecuteAll'''
           new = '''namespace Vulkan {
-
           constexpr u64 MAX_PENDING_FLUSHES = 5;
-
           void Scheduler::CommandChunk::ExecuteAll'''
           if old not in s:
               raise SystemExit("vk_scheduler.cpp namespace anchor not found")
@@ -84,8 +78,7 @@ jobs:
               const bool should_throttle = Settings::IsGPULevelLow();
               if (should_throttle) {
                   const u64 current_tick = master_semaphore->CurrentTick();
-                  const u64 gap =
-                      current_tick > last_submitted_tick ? current_tick - last_submitted_tick : 0;
+                  const u64 gap = current_tick > last_submitted_tick ? current_tick - last_submitted_tick : 0;
                   const u64 step = (std::min)(MAX_PENDING_FLUSHES, gap);
                   const u64 new_tick = last_submitted_tick + step;
                   if (new_tick < current_tick) {
@@ -99,7 +92,7 @@ jobs:
           }'''
           if old not in s:
               raise SystemExit("vk_scheduler.cpp Flush anchor not found")
-          cpp.write_text(s)
+          cpp.write_text(s.replace(old, new, 1))
 
           s = hdr.read_text()
           old = '''    std::chrono::steady_clock::time_point start_time{};
@@ -109,7 +102,6 @@ jobs:
           new = '''    std::chrono::steady_clock::time_point start_time{};
               u64 frame_counter{};
               double current_target_fps{};
-
               u64 last_submitted_tick = 0;
           };'''
           if old not in s:
@@ -122,20 +114,16 @@ jobs:
           if old not in s:
               raise SystemExit("build.gradle.kts applicationId anchor not found")
           s = s.replace(old, new, 1)
-
           old = 'manifestPlaceholders += mapOf("appNameSuffix" to "")'
           new = 'manifestPlaceholders += mapOf("appNameSuffix" to " P5R Sync V1")'
           if old not in s:
               raise SystemExit("build.gradle.kts appNameSuffix anchor not found")
-          s = s.replace(old, new, 1)
-
-          gradle.write_text(s)
+          gradle.write_text(s.replace(old, new, 1))
           PY
-
           git diff --check
           git diff -- src/video_core/renderer_vulkan/vk_scheduler.cpp \
-                     src/video_core/renderer_vulkan/vk_scheduler.h \
-                     src/android/app/build.gradle.kts
+            src/video_core/renderer_vulkan/vk_scheduler.h \
+            src/android/app/build.gradle.kts
 
       - name: Build Standard Release APK
         shell: bash
@@ -150,4 +138,3 @@ jobs:
           path: artifacts/*.apk
           if-no-files-found: error
           retention-days: 14
-          

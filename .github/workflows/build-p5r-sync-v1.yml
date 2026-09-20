@@ -57,10 +57,10 @@ jobs:
               raise SystemExit("vk_scheduler.cpp include anchor not found")
           s = s.replace(old, new, 1)
 
-          old = '''namespace Vulkan {
-          void Scheduler::CommandChunk::ExecuteAll'''
-          new = '''namespace Vulkan {
-          constexpr u64 MAX_PENDING_FLUSHES = 5;
+          old = '''void Scheduler::CommandChunk::ExecuteAll'''
+          # duplicate anchor removed
+          new = '''constexpr u64 MAX_PENDING_FLUSHES = 5;
+                    // duplicate constant removed
           void Scheduler::CommandChunk::ExecuteAll'''
           if old not in s:
               raise SystemExit("vk_scheduler.cpp namespace anchor not found")
